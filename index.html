@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Instrumento de Observação Pedagógica - V2</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 20px; color: #333; }
+.container { max-width: 950px; margin: auto; background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+h1 { text-align: center; color: #005a9e; margin-bottom: 30px; border-bottom: 2px solid #005a9e; padding-bottom: 10px; }
+
+/* Estilo do Cabeçalho de Identificação */
+.header-info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 30px; border: 1px solid #ddd; }
+.header-info div { display: flex; flex-direction: column; }
+.header-info label { font-weight: bold; margin-bottom: 5px; font-size: 0.9em; }
+.header-info input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+
+/* Estilo das Perguntas */
+.question { border-bottom: 1px solid #eee; padding-bottom: 25px; margin-bottom: 30px; }
+.question-title { font-weight: bold; font-size: 1.1em; display: block; margin-bottom: 15px; color: #222; }
+.subrespostas { margin: 15px 0; display: flex; flex-wrap: wrap; gap: 15px; background: #fcfcfc; padding: 15px; border-radius: 8px; border: 1px dashed #ccc; }
+.subrespostas label { font-weight: normal; font-size: 0.85em; display: flex; align-items: center; cursor: pointer; }
+.subrespostas input { margin-right: 8px; }
+
+select, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
+textarea { height: 70px; resize: vertical; margin-top: 10px; }
+.obs-label { display: block; margin-top: 15px; font-weight: bold; font-size: 0.9em; color: #555; }
+
+button { background: #0078d4; color: #fff; border: none; padding: 18px 40px; border-radius: 8px; cursor: pointer; display: block; margin: 40px auto; font-size: 1.1em; font-weight: bold; transition: 0.3s; }
+button:hover { background: #005fa3; transform: translateY(-2px); }
+.feedback { text-align: center; color: #28a745; font-weight: bold; margin-top: 20px; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1>Instrumento de Observação Pedagógica</h1>
+
+    <div class="header-info">
+        <div>
+            <label>Unidade Escolar:</label>
+            <input type="text" id="escola" placeholder="Nome da escola">
+        </div>
+        <div>
+            <label>Data da Observação:</label>
+            <input type="date" id="data_obs">
+        </div>
+        <div>
+            <label>Professor(a) Observado(a):</label>
+            <input type="text" id="professor" placeholder="Nome do docente">
+        </div>
+        <div>
+            <label>Responsável pela Observação:</label>
+            <input type="text" id="observador" placeholder="Nome do coordenador/diretor">
+        </div>
+    </div>
+
+    <form id="formulario"></form>
+
+    <button type="button" onclick="gerarPDF()">Finalizar e Salvar PDF</button>
+    <div class="feedback" id="feedback"></div>
+</div>
+
+<script>
+// CONFIGURAÇÃO DE TODAS AS PERGUNTAS E SEUS ITENS INDIVIDUAIS
+const dadosPedagogicos = [
+  { p: "Objetivo da aula", s: ["Claro para os alunos", "Escrito no quadro", "Retomado no fechamento"] },
+  { p: "Coerência pedagógica", s: ["Alinhado ao currículo", "Sequência lógica", "Relação teoria-prática"] },
+  { p: "Clareza do propósito", s: ["Explicação inicial", "Sentido prático", "Foco mantido"] },
+  { p: "Uso de recursos didáticos", s: ["Quadro/Pincel", "Multimídia", "Material concreto"] },
+  { p: "Adaptação dos recursos", s: ["Acessibilidade", "Tamanho da fonte/imagem", "Estado de conservação"] },
+  { p: "Conexão recurso–objetivo", s: ["Apoia a explicação", "Essencial para a aula", "Manuseio adequado"] },
+  { p: "Segurança na explicação", s: ["Domínio do tema", "Sem hesitações", "Linguagem clara"] },
+  { p: "Aprofundamento conceitual", s: ["Além do básico", "Conexão com outras áreas", "Rigor científico"] },
+  { p: "Domínio do conteúdo", s: ["Responde dúvidas", "Exemplos variados", "Atualização"] },
+  { p: "Verificação da aprendizagem", s: ["Sondagem", "Exercícios em aula", "Perguntas dirigidas"] },
+  { p: "Qualidade das perguntas", s: ["Estimula reflexão", "Aberta/Desafiadora", "Distribuição na sala"] },
+  { p: "Ausência de verificação", s: ["Passou conteúdo sem parar", "Não olhou cadernos", "Ignorou dúvidas"] },
+  { p: "Ritmo da aula", s: ["Dinâmico", "Tempo para pensar", "Sem ociosidade"] },
+  { p: "Flexibilidade pedagógica", s: ["Aproveitou ganchos", "Ajustou plano no momento", "Atento ao clima"] },
+  { p: "Estrutura didática", s: ["Início, meio e fim", "Transições suaves", "Organização"] },
+  { p: "Gestão do tempo", s: ["Concluiu a proposta", "Divisão por atividades", "Controle de interrupções"] },
+  { p: "Engajamento dos alunos", s: ["Alta participação", "Atenção sustentada", "Trabalho produtivo"] },
+  { p: "Momentos de desengajamento", s: ["Conversas paralelas", "Uso indevido de celular", "Alunos ociosos"] },
+  { p: "Gestão de conflitos", s: ["Intervenção rápida", "Mediação respeitosa", "Manutenção da ordem"] },
+  { p: "Feedback pedagógico", s: ["Individualizado", "Reforço positivo", "Orientações de melhoria"] }
+];
+
+const opcoesPrincipais = [
+  "✅ Evidência positiva observada",
+  "⚖️ Parcialmente observada",
+  "❌ Não observada",
+  "🚫 Não foi possível observar"
+];
+
+const form = document.getElementById("formulario");
+
+// Geração dinâmica do formulário
+dadosPedagogicos.forEach((item, i) => {
+  const div = document.createElement("div");
+  div.className = "question";
+  div.innerHTML = `
+    <span class="question-title">${i + 1}. ${item.p}</span>
+    <select onchange="ativarCampos(${i})" id="res_${i}">
+      <option value="">Selecione a avaliação...</option>
+      ${opcoesPrincipais.map(opt => `<option value="${opt}">${opt}</option>`).join("")}
+    </select>
+    <div class="subrespostas">
+      ${item.s.map((texto, idx) => `
+        <label><input type="checkbox" name="sub_${i}" value="${texto}" disabled> ${texto}</label>
+      `).join("")}
+    </div>
+    <label class="obs-label">Observações:</label>
+    <textarea id="obs_${i}"></textarea>
+  `;
+  form.appendChild(div);
+});
+
+function ativarCampos(i) {
+  document.querySelectorAll(`input[name="sub_${i}"]`).forEach(cb => cb.disabled = false);
+}
+
+async function gerarPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y = 20;
+
+  // Função auxiliar para quebra de página
+  const checkPage = (height) => {
+    if (y + height > 280) { doc.addPage(); y = 20; return true; }
+    return false;
+  };
+
+  // --- CABEÇALHO ---
+  doc.setFontSize(16);
+  doc.setFont(undefined, 'bold');
+  doc.text("Relatório de Observação Pedagógica", 105, y, { align: "center" });
+  y += 15;
+
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  const infoEscola = `Escola: ${document.getElementById("escola").value || "__________"}`;
+  const infoData = `Data: ${document.getElementById("data_obs").value || " / / "}`;
+  const infoProf = `Professor(a): ${document.getElementById("professor").value || "__________"}`;
+  const infoObs = `Observador(a): ${document.getElementById("observador").value || "__________"}`;
+
+  doc.text(infoEscola, 10, y);
+  doc.text(infoData, 150, y);
+  y += 7;
+  doc.text(infoProf, 10, y);
+  doc.text(infoObs, 150, y);
+  y += 10;
+  doc.line(10, y, 200, y);
+  y += 12;
+
+  // --- CORPO DO RELATÓRIO ---
+  for (let i = 0; i < dadosPedagogicos.length; i++) {
+    const resp = document.getElementById(`res_${i}`).value;
+    const obs = document.getElementById(`obs_${i}`).value;
+    const checks = [...document.querySelectorAll(`input[name="sub_${i}"]:checked`)].map(c => c.value);
+
+    if (!resp) { alert(`Responda a pergunta ${i+1}`); return; }
+
+    // Pergunta
+    doc.setFont(undefined, 'bold');
+    const pLines = doc.splitTextToSize(`${i+1}. ${dadosPedagogicos[i].p}`, 180);
+    checkPage(pLines.length * 7);
+    doc.text(pLines, 10, y);
+    y += (pLines.length * 6);
+
+    // Resposta
+    doc.setFont(undefined, 'normal');
+    doc.text(`Avaliação: ${resp}`, 15, y);
+    y += 6;
+
+    // Sub-itens
+    if (checks.length > 0) {
+      const sLines = doc.splitTextToSize(`Itens verificados: ${checks.join(", ")}`, 170);
+      checkPage(sLines.length * 6);
+      doc.text(sLines, 15, y);
+      y += (sLines.length * 6);
+    }
+
+    // Obs
+    if (obs) {
+      doc.setFont(undefined, 'italic');
+      const oLines = doc.splitTextToSize(`Obs: ${obs}`, 170);
+      checkPage(oLines.length * 6);
+      doc.text(oLines, 15, y);
+      y += (oLines.length * 6);
+    }
+    y += 8;
+  }
+
+  // --- ASSINATURAS ---
+  checkPage(40);
+  y += 15;
+  doc.line(20, y, 90, y);
+  doc.line(120, y, 190, y);
+  y += 5;
+  doc.setFont(undefined, 'bold');
+  doc.text("Assinatura do Professor", 55, y, { align: "center" });
+  doc.text("Assinatura do Observador", 155, y, { align: "center" });
+
+  doc.save(`Observacao_${document.getElementById("professor").value || "Pedagogica"}.pdf`);
+  document.getElementById("feedback").textContent = "Documento gerado com sucesso!";
+}
+</script>
+
+</body>
+</html>
